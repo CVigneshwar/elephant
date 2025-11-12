@@ -1,0 +1,27 @@
+{
+  "name": "HighSchool Scheduler Dev",
+  "dockerFile": "Dockerfile",
+  "context": "..",
+  "runArgs": ["--network=host"],
+
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "java.home": "/usr/lib/jvm/msopenjdk-17",
+    "files.autoSave": "onFocusChange"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.java",
+        "angular.ng-template",
+        "ms-vscode.vscode-typescript-next",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+
+  "postCreateCommand": "npm install --prefix frontend",
+  "remoteUser": "vscode"
+}

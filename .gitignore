@@ -1,0 +1,27 @@
+# ---- General ----
+.DS_Store
+Thumbs.db
+
+# ---- IntelliJ / IDE ----
+.idea/
+*.iml
+.vscode/
+
+# ---- Maven / Gradle ----
+target/
+build/
+out/
+
+# ---- Logs ----
+*.log
+logs/
+
+# ---- Node / Angular ----
+node_modules/
+dist/
+.tmp/
+.angular/cache/
+
+# ---- OS ----
+*.swp
+*.swo
