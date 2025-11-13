@@ -3,7 +3,6 @@
   "dockerFile": "Dockerfile",
   "context": "..",
 
-
   "customizations": {
     "vscode": {
       "extensions": [
@@ -20,7 +19,5 @@
 
   "postCreateCommand": "npm install --prefix scheduler-ui",
 
-"postStartCommand": "npm run start:docker --prefix scheduler-ui",
-
-  "remoteUser": "vscode"
+  "remoteUser": "root"
 }
