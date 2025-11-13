@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
-import { AdminScheduleComponent } from './pages/admin-schedule/admin-schedule.component';
-import { WeeklyTimetableComponent } from './pages/weekly-timetable/weekly-timetable.component';
-import { UtilizationDashboardComponent } from './pages/utilization-dashboard/utilization-dashboard.component';
+import { AdminScheduleComponent } from './pages/teacher/admin-schedule/admin-schedule.component';
+import { WeeklyTimetableComponent } from './pages/teacher/weekly-timetable/weekly-timetable.component';
+import { UtilizationDashboardComponent } from './pages/teacher/utilization-dashboard/utilization-dashboard.component';
 import { LoginComponent } from './pages/login/login.component';
 
 export const routes: Routes = [

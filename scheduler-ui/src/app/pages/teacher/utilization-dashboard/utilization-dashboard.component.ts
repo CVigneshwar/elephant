@@ -1,7 +1,8 @@
 import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
+import { HttpClientModule } from '@angular/common/http';
+import { ScheduleService } from '../../../core/services/schedule.service';
 
 Chart.register(...registerables);
 
@@ -13,26 +14,30 @@ Chart.register(...registerables);
   styleUrls: ['./utilization-dashboard.component.scss']
 })
 export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
+
   utilization: any;
-  baseUrl = 'http://localhost:8080/api/utilization';
   private chartsInitialized = false;
   private chartInstances: Chart[] = [];
 
-  constructor(private http: HttpClient) {}
+  constructor(private scheduleService: ScheduleService) {}
 
   ngOnInit(): void {
-    this.http.get(this.baseUrl).subscribe({
-      next: (data: any) => {
+    this.scheduleService.getUtilization().subscribe({
+      next: data => {
         this.utilization = data;
-        if (this.chartsInitialized) this.renderCharts();
+        if (this.chartsInitialized) {
+          this.renderCharts();
+        }
       },
-      error: (err) => console.error('Failed to load utilization data', err)
+      error: err => console.error('Failed to load utilization data', err)
     });
   }
 
   ngAfterViewInit(): void {
     this.chartsInitialized = true;
-    if (this.utilization) this.renderCharts();
+    if (this.utilization) {
+      this.renderCharts();
+    }
   }
 
   destroyCharts(): void {
@@ -54,7 +59,7 @@ export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
     }, 150);
   }
 
-  // ----------------- TEACHER UTILIZATION -----------------
+  // TEACHERS
   renderTeacherChart(): Chart | void {
     const canvas = document.getElementById('teacherChart') as HTMLCanvasElement;
     if (!canvas || !this.utilization?.teacherUsage) return;
@@ -71,15 +76,13 @@ export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
       },
       options: {
         plugins: { title: { display: true, text: 'Teacher Utilization (%)' } },
-        scales: {
-          y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } }
-        },
+        scales: { y: { beginAtZero: true, max: 100 } },
         maintainAspectRatio: false
       }
     });
   }
 
-  // ----------------- ROOM UTILIZATION -----------------
+  // ROOMS
   renderRoomChart(): Chart | void {
     const canvas = document.getElementById('roomChart') as HTMLCanvasElement;
     if (!canvas || !this.utilization?.roomUsage) return;
@@ -96,15 +99,13 @@ export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
       },
       options: {
         plugins: { title: { display: true, text: 'Room Utilization (%)' } },
-        scales: {
-          y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } }
-        },
+        scales: { y: { beginAtZero: true, max: 100 } },
         maintainAspectRatio: false
       }
     });
   }
 
-  // ----------------- DAY UTILIZATION -----------------
+  // DAYS
   renderDayChart(): Chart | void {
     const canvas = document.getElementById('dayChart') as HTMLCanvasElement;
     if (!canvas || !this.utilization?.dayUsage) return;
@@ -129,7 +130,7 @@ export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // ----------------- TIME SLOT UTILIZATION -----------------
+  // TIME SLOTS
   renderTimeSlotChart(): Chart | void {
     const canvas = document.getElementById('timeChart') as HTMLCanvasElement;
     if (!canvas || !this.utilization?.timeSlotUsage) return;

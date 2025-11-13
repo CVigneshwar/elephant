@@ -17,4 +17,51 @@ export class EnrollmentService {
   enroll(studentId: number, sectionId: number, enrolledDate: string): Observable<any> {
     return this.http.post(`${this.base}/${studentId}/enroll`, { studentId, sectionId, enrolledDate });
   }
+
+  // -------------------------------
+  // Progress Overview
+  // -------------------------------
+  getProgress(studentId: number): Observable<any> {
+    return this.http.get(`${this.base}/${studentId}/progress`);
+  }
+
+  // -------------------------------
+  // Academic History
+  // -------------------------------
+  getAcademicHistory(studentId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/${studentId}/history`);
+  }
+
+  // -------------------------------
+  // Current Semester Enrollments
+  // -------------------------------
+  getCurrentEnrollments(studentId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/${studentId}/enrollments/current`);
+  }
+
+
+  // -------------------------------
+  // Fetch eligible course sections
+  // -------------------------------
+  getEligibleSections(studentId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/${studentId}/eligible-sections`);
+  }
+
+  // -------------------------------
+  // Validate conflict
+  // -------------------------------
+  validateConflict(studentId: number, sectionId: number, enrolledDate: string): Observable<any> {
+    return this.http.post(`${this.base}/${studentId}/validate-conflict`, { studentId, sectionId, enrolledDate });
+  }
+
+  // -------------------------------
+  // Validate prerequisite
+  // -------------------------------
+  validatePrerequisite(studentId: number, courseId: number): Observable<any> {
+    return this.http.post(`${this.base}/${studentId}/validate-prereq`, {
+      courseId: courseId
+    });
+  }
+
+
 }

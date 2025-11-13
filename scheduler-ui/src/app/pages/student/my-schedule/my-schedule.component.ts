@@ -9,24 +9,14 @@ import { UserContextService } from '../../../core/services/user-context.service'
   selector: 'app-my-schedule',
   standalone: true,
   imports: [CommonModule, WeeklyCalendarComponent],
-  template: `
-    <div class="page">
-      <h2>My Schedule</h2>
-      <app-weekly-calendar
-        [events]="schedule"
-        [semesterStart]="semesterStart"
-        [semesterEnd]="semesterEnd"
-        [isStudentView]="true">
-      </app-weekly-calendar>
-    </div>
-  `,
-  styles: [`.page { padding: 20px; }`]
+  templateUrl: './my-schedule.component.html',
+  styleUrls: ['./my-schedule.component.scss']
 })
 export class MyScheduleComponent implements OnInit {
+
   schedule: ScheduleEvent[] = [];
   semesterStart?: string;
   semesterEnd?: string;
-  private base = 'http://localhost:8080/api';
 
   constructor(
     private semesterService: SemesterService,
@@ -38,7 +28,6 @@ export class MyScheduleComponent implements OnInit {
     const user = this.userCtx.getUser();
     if (!user) return;
 
-    // ✅ Fetch semester and schedule concurrently
     this.semesterService.getActiveSemester().subscribe(semester => {
       this.semesterStart = semester.startDate;
       this.semesterEnd = semester.endDate;

@@ -1,0 +1,18 @@
+<header class="navbar">
+  <div class="nav-left">
+    <h1 class="logo">🎓 Student Portal</h1>
+
+    <nav class="menu">
+      <a mat-button routerLink="browse" routerLinkActive="active">Browse Courses</a>
+      <a mat-button routerLink="schedule" routerLinkActive="active">My Schedule</a>
+      <a mat-button routerLink="progress" routerLinkActive="active">My Progress</a>
+    </nav>
+  </div>
+
+  <div class="nav-right">
+    <span class="user">👤 {{ userName }}</span>
+    <button mat-stroked-button color="warn" (click)="logout()">Logout</button>
+  </div>
+</header>
+
+<router-outlet></router-outlet>

@@ -151,23 +151,24 @@ public class EnrollmentService {
 
 
     // ---- Validate: conflicts with current schedule
-    public ValidationResponse validateConflict(Long studentId, Long sectionId) {
-        var target = sectionRepo.findById(sectionId).orElseThrow();
-        var targetSemesterId = target.getSemester().getId();
+    public ValidationResponse validateConflict(Long studentId, Long sectionId, LocalDate selectedDate) {
 
-        // Fetch all enrollments for the same semester
-        var mine = enrollRepo.findByStudentIdAndSemesterId(studentId, targetSemesterId);
+        var target = sectionRepo.findById(sectionId)
+                .orElseThrow(() -> new IllegalArgumentException("Section not found"));
+
+        // All enrollments for student on same semester
+        var existing = enrollRepo.findByStudentIdAndSemesterId(studentId, target.getSemester().getId());
 
         List<String> errors = new ArrayList<>();
 
-        for (var e : mine) {
-            //  Skip if enrolled on different date (no conflict)
-            if (e.getEnrolledDate() == null || !Objects.equals(e.getEnrolledDate(), target.getSemester().getStartDate())) {
-                // We'll compare only if both share the same enrolled date
-                continue;
+        for (var e : existing) {
+
+            // Must match same exact enrolled date
+            if (!Objects.equals(e.getEnrolledDate(), selectedDate)) {
+                continue; // different day → no conflict
             }
 
-            // Check if same date and overlapping time
+            // Same date → check overlapping time
             if (overlap(e.getCourseSection(), target)) {
                 var c = e.getCourseSection().getCourse();
                 errors.add(String.format(
@@ -182,6 +183,7 @@ public class EnrollmentService {
 
         return new ValidationResponse(errors.isEmpty(), errors);
     }
+
 
     // ---- Validate: prerequisite completion
     public ValidationResponse validatePrerequisite(Long studentId, Long courseId) {
@@ -215,8 +217,8 @@ public class EnrollmentService {
             throw new IllegalStateException("Maximum of " + MAX_COURSES_PER_SEMESTER + " courses per semester reached.");
         }
 
-        // conflict detection (if you have one)
-        var conflict = validateConflict(studentId, sectionId);
+        // conflict detection
+        var conflict = validateConflict(studentId, sectionId, enrolledDate);
         if (!conflict.ok()) {
             throw new IllegalStateException(conflict.errors().get(0));
         }

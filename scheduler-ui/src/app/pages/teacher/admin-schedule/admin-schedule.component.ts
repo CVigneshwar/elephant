@@ -7,10 +7,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { ScheduleEvent, WeeklyCalendarComponent } from '../../shared/components/weekly-calendar/weekly-calendar.component';
-import { ScheduleService } from '../../core/services/schedule.service';
+import { ScheduleEvent, WeeklyCalendarComponent } from '../../../shared/components/weekly-calendar/weekly-calendar.component';
+import { ScheduleService } from '../../../core/services/schedule.service';
 import { finalize } from 'rxjs/operators';
-import { SemesterService } from '../../core/services/semester.service';
+import { SemesterService } from '../../../core/services/semester.service';
 
 @Component({
   selector: 'app-admin-schedule',

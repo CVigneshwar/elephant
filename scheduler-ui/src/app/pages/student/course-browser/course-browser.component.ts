@@ -4,12 +4,10 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { HttpClient } from '@angular/common/http';
-import { UserContextService } from '../../../core/services/user-context.service';
-import { CourseSection, ScheduleService } from '../../../core/services/schedule.service';
-import { EnrollmentService } from '../../../core/services/enrollment.service';
-import { EnrollDialogComponent } from '../enroll-dialogue/enroll-dialogue.component';
 
+import { UserContextService } from '../../../core/services/user-context.service';
+import { EnrollmentService } from '../../../core/services/enrollment.service';
+import { EnrollDialogComponent } from '../enroll-dialogue/enroll-dialog.component';
 
 @Component({
   selector: 'app-course-browser',
@@ -19,18 +17,16 @@ import { EnrollDialogComponent } from '../enroll-dialogue/enroll-dialogue.compon
   styleUrls: ['./course-browser.component.scss']
 })
 export class CourseBrowserComponent implements OnInit {
-    displayedColumns = ['dayOfWeek', 'time', 'course', 'courseType', 'teacher', 'room', 'action'];
-    sections: CourseSection[] = [];
-  loading = true;
+
+  displayedColumns = ['dayOfWeek', 'time', 'course', 'teacher', 'room', 'action', 'courseType'];
+  sections: any[] = [];
   studentId!: number;
-  base = 'http://localhost:8080/api';
+  loading = true;
 
   constructor(
-    private http: HttpClient,
-    private snack: MatSnackBar,
     private userCtx: UserContextService,
-    private scheduleService: ScheduleService,
     private enrollmentService: EnrollmentService,
+    private snack: MatSnackBar,
     private dialog: MatDialog
   ) {}
 
@@ -39,75 +35,75 @@ export class CourseBrowserComponent implements OnInit {
     if (!user) return;
     this.studentId = user.id;
 
-    this.http.get(`${this.base}/students/${this.studentId}/eligible-sections`)
-      .subscribe((res: any) => {
-        this.sections = res;
-        this.loading = false;
+    this.loadEligibleSections();
+  }
+
+  // -------------------------------
+  // Fetch sections via service
+  // -------------------------------
+  loadEligibleSections() {
+    this.loading = true;
+    this.enrollmentService.getEligibleSections(this.studentId)
+      .subscribe({
+        next: (res) => {
+          this.sections = res;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.snack.open('Failed to load sections', 'Close', { duration: 3000 });
+        }
       });
   }
 
-  /** 🧠 Opens date picker dialog and performs enrollment */
+  // -------------------------------
+  // Handle enrollment workflow
+  // -------------------------------
   enroll(section: any) {
     const dialogRef = this.dialog.open(EnrollDialogComponent, {
       width: '400px',
       data: { sectionId: section.id, courseName: section.courseName }
     });
-  
-    dialogRef.afterClosed().subscribe((selectedDate: string | null) => {
-      if (!selectedDate) {
-        return; // user canceled
-      }
-  
-      // ✅ Validate conflict
-      this.http
-        .post(`${this.base}/students/${this.studentId}/validate-conflict`, { courseSectionId: section.id })
+
+    dialogRef.afterClosed().subscribe((date: string | null) => {
+      if (!date) return;
+
+      // Step 1 — Validate conflict
+      this.enrollmentService.validateConflict(this.studentId, section.id, date)
         .subscribe({
-          next: (valRes: any) => {
-            if (!valRes.ok) {
-              this.snack.open(valRes.errors?.[0] || 'Schedule conflict detected', 'Close', { duration: 3000 });
+          next: (confRes) => {
+            if (!confRes.ok) {
+              this.snack.open(confRes.errors?.[0] || 'Schedule conflict', 'Close', { duration: 3000 });
               return;
             }
-  
-            // ✅ Validate prerequisite
-            this.http
-              .post(`${this.base}/students/${this.studentId}/validate-prereq`, { courseId: section.courseId })
+
+            // Step 2 — Validate prerequisite
+            this.enrollmentService.validatePrerequisite(this.studentId, section.courseId)
               .subscribe({
-                next: (preRes: any) => {
+                next: (preRes) => {
                   if (!preRes.ok) {
                     this.snack.open('Prerequisite not completed', 'Close', { duration: 3000 });
                     return;
                   }
-  
-                  // ✅ Enroll student
-                  this.enrollmentService.enroll(this.studentId, section.id, selectedDate).subscribe({
-                    next: () => {
-                      this.snack.open('Enrolled successfully!', 'Close', { duration: 2500 });
-                      this.refreshSections();
-                    },
-                    error: (err) => {
-                        const msg =
-                          err?.error?.error ||       // Spring Boot `error` field
-                          err?.error?.message ||     // Custom message from backend
-                          err?.message ||            // HTTP message
-                          'Enrollment failed';
-                        this.snack.open(msg, 'Close', { duration: 3000 });
+
+                  // Step 3 — Enroll
+                  this.enrollmentService.enroll(this.studentId, section.id, date)
+                    .subscribe({
+                      next: () => {
+                        this.snack.open('Enrolled successfully!', 'Close', { duration: 2500 });
+                        this.loadEligibleSections(); // refresh list
+                      },
+                      error: (err) => {
+                        this.snack.open(err.error?.error || 'Enrollment failed', 'Close', { duration: 3000 });
                       }
-                  });
-                },
-                error: () => {
-                  this.snack.open('Error validating prerequisite', 'Close', { duration: 3000 });
+                    });
                 }
               });
           },
           error: () => {
-            this.snack.open('Error validating conflict', 'Close', { duration: 3000 });
+            this.snack.open('Conflict validation error', 'Close', { duration: 3000 });
           }
         });
     });
-  }
-
-  refreshSections() {
-    this.http.get(`${this.base}/students/${this.studentId}/eligible-sections`)
-      .subscribe((res: any) => (this.sections = res));
   }
 }

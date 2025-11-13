@@ -38,12 +38,10 @@ public class EnrollmentController {
     }
 
     @PostMapping("/{studentId}/validate-conflict")
-    public ValidationResponse validateConflict(
-            @PathVariable Long studentId,
-            @RequestBody ConflictCheckRequest req) {
+    public ValidationResponse validateConflict(@RequestBody EnrollmentRequestDTO enrollmentRequest) {
 
-        log.debug("Validating conflict for student {} on section {}", studentId, req.courseSectionId());
-        return enrollmentService.validateConflict(studentId, req.courseSectionId());
+        log.debug("Validating conflict for student {} on section {}", enrollmentRequest.studentId(), enrollmentRequest.sectionId());
+        return enrollmentService.validateConflict(enrollmentRequest.studentId(), enrollmentRequest.sectionId(), enrollmentRequest.enrolledDate());
     }
 
     @PostMapping("/{studentId}/validate-prereq")

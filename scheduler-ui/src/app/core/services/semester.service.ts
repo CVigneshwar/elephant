@@ -14,7 +14,7 @@ export interface Semester {
 
 @Injectable({ providedIn: 'root' })
 export class SemesterService {
-  private base = 'http://localhost:8080/api/semesters';
+  private base = '/api/semesters';
   private activeSemesterCache$?: Observable<Semester>;
 
   constructor(private http: HttpClient) {}

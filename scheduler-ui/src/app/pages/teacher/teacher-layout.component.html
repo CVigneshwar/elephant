@@ -1,0 +1,18 @@
+<header class="navbar">
+  <div class="nav-left">
+    <h1 class="logo">👨‍🏫 Teacher Portal</h1>
+
+    <nav class="menu">
+      <a mat-button routerLink="schedule-generator" routerLinkActive="active">Generate Schedule</a>
+      <a mat-button routerLink="weekly-timetable" routerLinkActive="active">Weekly Timetable</a>
+      <a mat-button routerLink="utilization" routerLinkActive="active">Utilization</a>
+    </nav>
+  </div>
+
+  <div class="nav-right">
+    <span class="user">👤 {{ userName }}</span>
+    <button mat-stroked-button color="warn" (click)="logout()">Logout</button>
+  </div>
+</header>
+
+<router-outlet></router-outlet>

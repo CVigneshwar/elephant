@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { StudentLayoutComponent } from './student-layout.component';
-import { AuthGuard } from '../../core/services/authGaurd.services';
+import { AuthGuard } from '../../core/gaurds/authGaurd.services';
 
 export const routes: Routes = [
   {

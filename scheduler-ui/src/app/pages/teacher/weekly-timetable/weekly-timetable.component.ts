@@ -5,7 +5,7 @@ import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTableDataSource } from '@angular/material/table';
-import { ScheduleService } from '../../core/services/schedule.service';
+import { ScheduleService } from '../../../core/services/schedule.service';
 
 @Component({
   selector: 'app-weekly-timetable',

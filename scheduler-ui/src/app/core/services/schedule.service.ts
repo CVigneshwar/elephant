@@ -19,6 +19,7 @@ export interface CourseSection {
 export class ScheduleService {
   private courseScheduleBase = '/api/schedule';
   private enrollmentScheduleBase = '/api/students';
+  private utilBase = '/api/utilization';
 
   constructor(private http: HttpClient) {}
 
@@ -37,4 +38,7 @@ export class ScheduleService {
  reset(): Observable<{ message: string }> {
   return this.http.delete<{ message: string }>(`${this.courseScheduleBase}/reset`);
 }
+  getUtilization(): Observable<any> {
+    return this.http.get<any>(this.utilBase);
+  }
 }
