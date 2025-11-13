@@ -24,4 +24,7 @@ dist/
 
 # ---- OS ----
 *.swp
-*.swo
+*.swoscheduler-ui/node_modules/ 
+scheduler-ui/dist/ 
+scheduler-ui/node_modules/ 
+scheduler-ui/dist/ 

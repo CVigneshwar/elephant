@@ -34,7 +34,7 @@ export class ScheduleService {
     return this.http.get<ScheduleEvent[]>(`${this.enrollmentScheduleBase}/${studentId}/schedule`);
   }
 
-  reset() {
-    return this.http.delete(`${this.courseScheduleBase}/reset`);
-  }
+ reset(): Observable<{ message: string }> {
+  return this.http.delete<{ message: string }>(`${this.courseScheduleBase}/reset`);
+}
 }

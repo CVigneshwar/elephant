@@ -67,7 +67,7 @@ export class AdminScheduleComponent {
       .subscribe(res => this.data = res);
   }
 
-  /** 🧹 Reset all generated sections & enrollments */
+  /**  Reset all generated sections & enrollments */
   resetAll() {
     const confirmed = confirm('⚠️ This will delete all course sections and student enrollments. Continue?');
     if (!confirmed) return;
@@ -76,7 +76,7 @@ export class AdminScheduleComponent {
     this.schedule.reset()
       .pipe(finalize(() => this.refresh()))
       .subscribe({
-        next: () => this.snack.open('🧹 Schedule reset successfully', 'Close', { duration: 2500 }),
+        next: (res) => {this.snack.open(res.message, 'Close', { duration: 2500 });},
         error: () => this.snack.open('⚠️ Failed to reset schedule', 'Close', { duration: 2500 })
       });
   }

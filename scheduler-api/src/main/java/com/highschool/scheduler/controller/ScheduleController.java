@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -35,10 +36,11 @@ public class ScheduleController {
     }
 
     @DeleteMapping("/reset")
-    public ResponseEntity<String> resetSchedule() {
-        log.warn("Resetting master schedule (active semester only)...");
+    public ResponseEntity<Map<String, String>> resetSchedule() {
+        log.debug("Resetting schedule...");
         scheduleGeneratorService.resetSchedule();
-        log.info("Master schedule reset completed.");
-        return ResponseEntity.ok(RESET_SCHEDULE_SUCCESS_MESSAGE);
+        return ResponseEntity.ok(
+                Map.of("message", RESET_SCHEDULE_SUCCESS_MESSAGE)
+        );
     }
 }

@@ -24,7 +24,7 @@ export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
     this.http.get(this.baseUrl).subscribe({
       next: (data: any) => {
         this.utilization = data;
-        if (this.chartsInitialized) this.renderCharts(); // re-render if view ready
+        if (this.chartsInitialized) this.renderCharts();
       },
       error: (err) => console.error('Failed to load utilization data', err)
     });
@@ -35,10 +35,8 @@ export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
     if (this.utilization) this.renderCharts();
   }
 
-  // ----------- Chart management helpers -----------
-
   destroyCharts(): void {
-    this.chartInstances.forEach((c) => c.destroy());
+    this.chartInstances.forEach(chart => chart.destroy());
     this.chartInstances = [];
   }
 
@@ -50,92 +48,99 @@ export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
         this.renderRoomChart(),
         this.renderDayChart(),
         this.renderTimeSlotChart()
-      ].filter((c): c is Chart => !!c); // ✅ keep only valid Chart objects
-  
+      ].filter((c): c is Chart => !!c);
+
       this.chartInstances.push(...charts);
-    }, 100);
+    }, 150);
   }
-  
 
-  // ----------- Individual Charts -----------
-
+  // ----------------- TEACHER UTILIZATION -----------------
   renderTeacherChart(): Chart | void {
     const canvas = document.getElementById('teacherChart') as HTMLCanvasElement;
-    if (!canvas || !this.utilization) return;
+    if (!canvas || !this.utilization?.teacherUsage) return;
 
     return new Chart(canvas, {
       type: 'bar',
       data: {
-        labels: this.utilization.teacherUtilization.map((t: any) => t.name),
+        labels: this.utilization.teacherUsage.map((t: any) => t.name),
         datasets: [{
           label: 'Teacher Utilization (%)',
-          data: this.utilization.teacherUtilization.map((t: any) => t.utilizationPercent),
+          data: this.utilization.teacherUsage.map((t: any) => t.percent),
           backgroundColor: '#4C9AFF'
         }]
       },
       options: {
         plugins: { title: { display: true, text: 'Teacher Utilization (%)' } },
-        scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } } },
+        scales: {
+          y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } }
+        },
         maintainAspectRatio: false
       }
     });
   }
 
+  // ----------------- ROOM UTILIZATION -----------------
   renderRoomChart(): Chart | void {
     const canvas = document.getElementById('roomChart') as HTMLCanvasElement;
-    if (!canvas || !this.utilization) return;
+    if (!canvas || !this.utilization?.roomUsage) return;
 
     return new Chart(canvas, {
       type: 'bar',
       data: {
-        labels: this.utilization.roomUtilization.map((r: any) => r.name),
+        labels: this.utilization.roomUsage.map((r: any) => r.name),
         datasets: [{
           label: 'Room Utilization (%)',
-          data: this.utilization.roomUtilization.map((r: any) => r.utilizationPercent),
+          data: this.utilization.roomUsage.map((r: any) => r.percent),
           backgroundColor: '#FFD56B'
         }]
       },
       options: {
         plugins: { title: { display: true, text: 'Room Utilization (%)' } },
-        scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } } },
+        scales: {
+          y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } }
+        },
         maintainAspectRatio: false
       }
     });
   }
 
+  // ----------------- DAY UTILIZATION -----------------
   renderDayChart(): Chart | void {
     const canvas = document.getElementById('dayChart') as HTMLCanvasElement;
-    if (!canvas || !this.utilization) return;
+    if (!canvas || !this.utilization?.dayUsage) return;
 
     return new Chart(canvas, {
       type: 'pie',
       data: {
-        labels: this.utilization.dayUtilization.map((d: any) => d.dayOfWeek),
+        labels: this.utilization.dayUsage.map((d: any) => d.day),
         datasets: [{
           label: 'Day Utilization (%)',
-          data: this.utilization.dayUtilization.map((d: any) => d.utilizationPercent),
+          data: this.utilization.dayUsage.map((d: any) => d.percent),
           backgroundColor: ['#B5E48C', '#99D98C', '#76C893', '#52B69A', '#34A0A4']
         }]
       },
       options: {
-        plugins: { title: { display: true, text: 'Day Utilization (%)' }, legend: { position: 'bottom' } },
+        plugins: {
+          title: { display: true, text: 'Day Utilization (%)' },
+          legend: { position: 'bottom' }
+        },
         maintainAspectRatio: false
       }
     });
   }
 
-  // ✅ UPDATED — show hours instead of percentage
+  // ----------------- TIME SLOT UTILIZATION -----------------
   renderTimeSlotChart(): Chart | void {
     const canvas = document.getElementById('timeChart') as HTMLCanvasElement;
-    if (!canvas || !this.utilization) return;
+    if (!canvas || !this.utilization?.timeSlotUsage) return;
 
     return new Chart(canvas, {
       type: 'bar',
       data: {
-        labels: this.utilization.timeSlotUtilization.map((t: any) => t.slot),
+        labels: this.utilization.timeSlotUsage.map((t: any) => t.slot),
         datasets: [{
-          label: 'Time Slot Utilized Hours',
-          data: this.utilization.timeSlotUtilization.map((t: any) => t.totalHoursScheduled),
+          label: 'Hours Used',
+          data: this.utilization.timeSlotUsage.map((t: any) => t.used),
           backgroundColor: '#6EA8FE'
         }]
       },
@@ -145,13 +150,8 @@ export class UtilizationDashboardComponent implements OnInit, AfterViewInit {
           legend: { display: false }
         },
         scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: 'Hours' }
-          },
-          x: {
-            title: { display: true, text: 'Time Slots' }
-          }
+          y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
+          x: { title: { display: true, text: 'Time Slot' } }
         },
         maintainAspectRatio: false
       }
