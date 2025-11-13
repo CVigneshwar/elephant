@@ -2,12 +2,8 @@
   "name": "HighSchool Scheduler Dev",
   "dockerFile": "Dockerfile",
   "context": "..",
- 
-  "settings": {
-    "files.autoSave": "onFocusChange",
-    "terminal.integrated.shell.linux": "/bin/bash"
-  },
- 
+
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -16,8 +12,15 @@
         "angular.ng-template",
         "esbenp.prettier-vscode"
       ]
+    },
+    "settings": {
+      "terminal.integrated.defaultProfile.linux": "bash"
     }
   },
- 
-  "postCreateCommand": "npm install --prefix scheduler-ui"
+
+  "postCreateCommand": "npm install --prefix scheduler-ui",
+
+"postStartCommand": "npm run start:docker --prefix scheduler-ui",
+
+  "remoteUser": "vscode"
 }

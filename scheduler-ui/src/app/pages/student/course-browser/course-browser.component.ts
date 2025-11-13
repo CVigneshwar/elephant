@@ -7,7 +7,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { UserContextService } from '../../../core/services/user-context.service';
 import { EnrollmentService } from '../../../core/services/enrollment.service';
-import { EnrollDialogComponent } from '../enroll-dialogue/enroll-dialog.component';
+import { EnrollDialogComponent } from '../enroll-dialog/enroll-dialog.component';
 
 @Component({
   selector: 'app-course-browser',
