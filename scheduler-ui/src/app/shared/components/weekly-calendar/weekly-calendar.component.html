@@ -1,0 +1,42 @@
+<div class="calendar-header">
+  <div class="nav-buttons">
+    <button class="nav-btn" (click)="prevWeek()">‹ Prev</button>
+    <!-- <button class="today-btn" (click)="today()">Today</button> -->
+    <button class="nav-btn" (click)="nextWeek()">Next ›</button>
+  </div>
+
+  <div class="week-label">{{ formatDateRange() }}</div>
+</div>
+
+<div class="calendar-grid">
+  <!-- Header -->
+  <div class="header-row">
+    <div class="time-col"></div>
+    <div *ngFor="let day of days" class="day-header">
+      <div class="day-name">{{ formatDate(day, 'EEE') }}</div>
+      <div class="day-date">{{ formatDate(day, 'MMM d') }}</div>
+      
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <div *ngFor="let t of times" class="time-row">
+      <div class="time-label">{{ t }}</div>
+
+      <div *ngFor="let d of days" class="cell">
+        <div class="parallel-row">
+          <div
+          *ngFor="let e of getEventsFor(d, t)"
+          class="event"
+            [attr.data-duration]="calculateDuration(e.startTime, e.endTime)">
+            <div class="title">{{ e.courseName }}</div>
+            <div class="teacher">{{ e.teacherName }}</div>
+            <div class="room">{{ e.roomName }}</div>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

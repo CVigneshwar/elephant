@@ -1,0 +1,57 @@
+.progress-page {
+    padding: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+  
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+  
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+  
+    mat-card {
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  
+    .gpa-value {
+      font-size: 36px;
+      font-weight: 700;
+      margin: 8px 0;
+    }
+  
+    .primary { color: #1976d2; }
+    .accent { color: #43a047; }
+    .warn { color: #e53935; }
+  
+    .completion-card {
+      text-align: center;
+      padding: 24px;
+    }
+
+    .student-info {
+        background: #f3f6fc;
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      
+        h3 {
+          margin: 0 0 5px;
+          color: #1565c0;
+        }
+      
+        p {
+          margin: 2px 0;
+          color: #333;
+        }
+      }
+      
+  }
+  

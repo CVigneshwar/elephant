@@ -1,0 +1,23 @@
+<div class="login-container">
+    <div class="login-box">
+      <h2>Maplewood High Portal</h2>
+  
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput [(ngModel)]="email" placeholder="Enter your Maplewood email" />
+      </mat-form-field>
+  
+      <button mat-raised-button color="primary" (click)="login()">Login</button>
+  
+      <div class="quick-login">
+        <p>Quick Sign In (Mock):</p>
+        <button mat-stroked-button color="accent" (click)="quickLogin('STUDENT')">
+          🎓 Login as Student
+        </button>
+        <button mat-stroked-button color="warn" (click)="quickLogin('TEACHER')">
+          👨‍🏫 Login as Teacher
+        </button>
+      </div>
+    </div>
+  </div>
+  

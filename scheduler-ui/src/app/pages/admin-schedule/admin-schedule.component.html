@@ -1,0 +1,24 @@
+<div class="toolbar">
+  <div class="left-buttons">
+    <button mat-raised-button color="primary" (click)="generate()" [disabled]="loading">
+      Generate
+    </button>
+    <button mat-button (click)="refresh()" [disabled]="loading">
+      Refresh
+    </button>
+  </div>
+
+  <div class="right-buttons">
+    <button mat-stroked-button color="warn" (click)="resetAll()" [disabled]="loading">
+       Reset Schedule
+    </button>
+  </div>
+</div>
+
+<mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+<app-weekly-calendar
+  [events]="data"
+  [semesterStart]="semesterStart"
+  [semesterEnd]="semesterEnd">
+</app-weekly-calendar>

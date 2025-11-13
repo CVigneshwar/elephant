@@ -1,0 +1,44 @@
+/* Overall toolbar container */
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f9f9f9;           /* soft contrast background */
+    border-radius: 8px;
+    padding: 16px 24px;            /* more generous padding */
+    margin: 20px 0 24px 0;         /* adds gap from menu and calendar */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  /* Left side (Generate + Refresh) */
+  .left-buttons {
+    display: flex;
+    align-items: center;
+    gap: 12px;                     /* consistent gap between buttons */
+  }
+  
+  /* Right side (Reset button) */
+  .right-buttons {
+    display: flex;
+    align-items: center;
+  }
+  
+  .right-buttons button {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  
+  /* Progress bar below toolbar */
+  mat-progress-bar {
+    margin: 10px 0 16px;
+    height: 4px;
+    border-radius: 2px;
+  }
+  
+  /* Add subtle hover effects for buttons */
+  button:hover {
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+  }
+  
+  

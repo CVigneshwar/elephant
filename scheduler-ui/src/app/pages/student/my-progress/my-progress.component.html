@@ -1,0 +1,96 @@
+<div class="progress-page" *ngIf="progress">
+    <h2>🎓 My Academic Progress</h2>
+  
+    <div class="student-info mat-elevation-z2">
+        <h3>{{ progress.studentName }}</h3>
+        <p><strong>Email:</strong> {{ progress.email }}</p>
+        <p><strong>Grade Level:</strong> {{ progress.gradeLevel }}</p>
+      </div>
+
+      
+    <!-- Summary Cards -->
+    <div class="card-grid">
+      <mat-card>
+        <h3>GPA</h3>
+        <div class="gpa">{{ progress.gpa | number:'1.2-2' }}</div>
+        <mat-progress-bar color="accent" [value]="(progress.gpa / 4) * 100"></mat-progress-bar>
+      </mat-card>
+  
+      <mat-card>
+        <h3>Credits</h3>
+        <p>{{ progress.creditsEarned }} / {{ progress.creditsRequired }}</p>
+        <mat-progress-bar color="primary"
+          [value]="(progress.creditsEarned / progress.creditsRequired) * 100">
+        </mat-progress-bar>
+      </mat-card>
+  
+      <mat-card>
+        <h3>Completion</h3>
+        <p>{{ progress.completionPercentage | number:'1.0-0' }}%</p>
+        <mat-progress-bar color="warn"
+          [value]="progress.completionPercentage">
+        </mat-progress-bar>
+      </mat-card>
+    </div>
+  
+    <!-- Academic History -->
+    <h3>📘 Academic History</h3>
+    <table mat-table [dataSource]="history" class="mat-elevation-z2">
+      <ng-container matColumnDef="semester">
+        <th mat-header-cell *matHeaderCellDef> Semester </th>
+        <td mat-cell *matCellDef="let h">{{ h.semesterName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="course">
+        <th mat-header-cell *matHeaderCellDef> Course </th>
+        <td mat-cell *matCellDef="let h">{{ h.courseName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef> Type </th>
+        <td mat-cell *matCellDef="let h">{{ h.courseType }}</td>
+      </ng-container>
+      <ng-container matColumnDef="credits">
+        <th mat-header-cell *matHeaderCellDef> Credits </th>
+        <td mat-cell *matCellDef="let h">{{ h.credits }}</td>
+      </ng-container>
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef> Status </th>
+        <td mat-cell *matCellDef="let h" [ngClass]="getStatusClass(h.status)">
+          {{ h.status | titlecase }}
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="displayedColumnsHistory"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumnsHistory;"></tr>
+    </table>
+  
+    <!-- Current Enrollments -->
+    <h3>📅 Current Course Selection</h3>
+    <table mat-table [dataSource]="enrollments" class="mat-elevation-z2">
+      <ng-container matColumnDef="day">
+        <th mat-header-cell *matHeaderCellDef> Day </th>
+        <td mat-cell *matCellDef="let e">{{ e.dayOfWeek | titlecase }}</td>
+      </ng-container>
+      <ng-container matColumnDef="time">
+        <th mat-header-cell *matHeaderCellDef> Time </th>
+        <td mat-cell *matCellDef="let e">{{ e.startTime }} - {{ e.endTime }}</td>
+      </ng-container>
+      <ng-container matColumnDef="course">
+        <th mat-header-cell *matHeaderCellDef> Course </th>
+        <td mat-cell *matCellDef="let e">{{ e.courseName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="teacher">
+        <th mat-header-cell *matHeaderCellDef> Teacher </th>
+        <td mat-cell *matCellDef="let e">{{ e.teacherName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="room">
+        <th mat-header-cell *matHeaderCellDef> Room </th>
+        <td mat-cell *matCellDef="let e">{{ e.roomName }}</td>
+      </ng-container>
+      <ng-container matColumnDef="date">
+        <th mat-header-cell *matHeaderCellDef> Enrolled Date </th>
+        <td mat-cell *matCellDef="let e">{{ e.enrolledDate }}</td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="displayedColumnsCurrent"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumnsCurrent;"></tr>
+    </table>
+  </div>
+  
