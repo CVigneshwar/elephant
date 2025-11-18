@@ -52,6 +52,12 @@ public class EnrollmentService {
     private final StudentCourseHistoryRepository historyRepo;
     private final CourseRepository courseRepo;
 
+    /**
+     * Retrieves the schedule for the specified student.
+     *
+     * @param studentId the ID of the student whose schedule is requested
+     * @return a list of {@link ScheduleEventDTO} representing the student's schedule
+     */
     public List<ScheduleEventDTO> getSchedule(Long studentId) {
         return enrollRepo.findByStudentId(studentId).stream()
                 .map(e -> {
@@ -72,6 +78,12 @@ public class EnrollmentService {
 
     }
 
+    /**
+     * Determines all course sections the student is eligible to enroll in for the current semester.
+     *
+     * @param studentId the ID of the student
+     * @return a list of {@link EligibleSectionDTO} for which the student is eligible
+     */
     public List<EligibleSectionDTO> getEligibleSections(Long studentId) {
 
         var student = studentRepo.findById(studentId)
@@ -150,7 +162,14 @@ public class EnrollmentService {
 
 
 
-    // ---- Validate: conflicts with current schedule
+    /**
+     * Validates if enrolling in a section would create a time conflict for a student on a given date.
+     *
+     * @param studentId the student's ID
+     * @param sectionId the ID of the section to check
+     * @param selectedDate the date for which the conflict is being validated
+     * @return a {@link ValidationResponse} indicating conflict status and messages
+     */
     public ValidationResponse validateConflict(Long studentId, Long sectionId, LocalDate selectedDate) {
 
         var target = sectionRepo.findById(sectionId)
@@ -185,13 +204,27 @@ public class EnrollmentService {
     }
 
 
-    // ---- Validate: prerequisite completion
+    /**
+     * Validates whether a student has satisfied the prerequisites for a course.
+     *
+     * @param studentId the student's ID
+     * @param courseId the course ID for which prerequisites should be checked
+     * @return a {@link ValidationResponse} indicating prerequisite status
+     */
     public ValidationResponse validatePrerequisite(Long studentId, Long courseId) {
         boolean ok = hasSatisfiedPrerequisite(studentId, courseId);
         return new ValidationResponse(ok, ok ? List.of() : List.of(PREREQUISITE_NOT_COMPLETED));
     }
 
-    // ---- Enroll
+    /**
+     * Enrolls a student in a course section on a specific date, enforcing all business rules.
+     *
+     * @param studentId the student's ID
+     * @param sectionId the section's ID
+     * @param enrolledDate the enrollment date
+     * @return the created {@link StudentSectionEnrollment}
+     * @throws IllegalStateException if any enrollment rules are violated
+     */
     @Transactional
     public StudentSectionEnrollment enroll(Long studentId, Long sectionId, LocalDate enrolledDate) {
         var section = sectionRepo.findById(sectionId)
@@ -233,6 +266,12 @@ public class EnrollmentService {
         return enrollRepo.save(enrollment);
     }
 
+    /**
+     * Retrieves all eligible enrollment dates for a given course section, based on capacity and semester dates.
+     *
+     * @param sectionId the section's ID
+     * @return a list of eligible {@link LocalDate} for enrollment
+     */
     public List<LocalDate> getEligibleDatesForSection(Long sectionId) {
         CourseSection section = sectionRepo.findById(sectionId)
                 .orElseThrow(() -> new IllegalArgumentException(SECTION_NOT_FOUND));
@@ -255,12 +294,12 @@ public class EnrollmentService {
                 .toList();
     }
 
-    // ---- Unenroll
-    @Transactional
-    public void unenroll(Long enrollmentId) {
-        enrollRepo.deleteById(enrollmentId);
-    }
-
+    /**
+     * Returns the academic history for a given student.
+     *
+     * @param studentId the ID of the student
+     * @return a list of {@link AcademicHistoryDTO} representing the student's academic history
+     */
     public List<AcademicHistoryDTO> getAcademicHistory(Long studentId) {
         var histories = historyRepo.findByStudentId(studentId);
         return histories.stream()
@@ -275,6 +314,12 @@ public class EnrollmentService {
                 .toList();
     }
 
+    /**
+     * Gets the current (active semester) enrollments for a student.
+     *
+     * @param studentId the ID of the student
+     * @return a list of {@link EnrollmentDTO} for the student's current enrollments
+     */
     public List<EnrollmentDTO> getCurrentEnrollments(Long studentId) {
         var semester = semesterRepo.findByIsActiveTrue()
                 .orElseThrow(() -> new IllegalStateException("No active semester found"));
@@ -300,7 +345,13 @@ public class EnrollmentService {
     }
 
 
-    // ---- Progress (GPA + credits)
+    /**
+     * Calculates and returns a summary of the student's academic progress,
+     * including GPA, credits, and completion percentage.
+     *
+     * @param studentId the ID of the student
+     * @return a map with progress data (GPA, credits, etc.)
+     */
     public Map<String, Object> getProgress(Long studentId) {
         var student = studentRepo.findById(studentId)
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
@@ -308,9 +359,9 @@ public class EnrollmentService {
         var histories = historyRepo.findByStudentId(studentId);
         var enrollments = enrollRepo.findByStudentId(studentId);
 
-        int totalCredits = histories.stream()
+        double totalCredits = histories.stream()
                 .filter(h -> "passed".equalsIgnoreCase(h.getStatus()))
-                .mapToInt(h -> h.getCourse().getCredits())
+                .mapToDouble(h -> h.getCourse().getCredits())
                 .sum();
 
         double gpa = histories.stream()
@@ -319,7 +370,7 @@ public class EnrollmentService {
                 .average().orElse(0.0);
 
         int creditsRequired = 30;
-        int creditsRemaining = Math.max(0, creditsRequired - totalCredits);
+        double creditsRemaining = Math.max(0, creditsRequired - totalCredits);
         double completion = ((double) totalCredits / creditsRequired) * 100;
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -338,12 +389,18 @@ public class EnrollmentService {
         return result;
     }
 
+    /**
+     * Calculates GPA from a list of pass/fail course histories.
+     *
+     * @param histories the list of {@link StudentCourseHistory}
+     * @return the calculated GPA as a double
+     */
     public double calculateGpaFromPassFail(List<StudentCourseHistory> histories) {
         double totalPoints = 0.0;
-        int totalCredits = 0;
+        double totalCredits = 0;
 
         for (var h : histories) {
-            int credits = h.getCourse().getCredits();
+            double credits = h.getCourse().getCredits();
             totalCredits += credits;
 
             if ("passed".equalsIgnoreCase(h.getStatus())) {

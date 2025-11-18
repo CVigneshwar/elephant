@@ -4,7 +4,7 @@ public record AcademicHistoryDTO(
         String semesterName,
         String courseName,
         String courseType,
-        int credits,
+        double credits,
         String status
 ) {
 }

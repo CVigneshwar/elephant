@@ -45,7 +45,7 @@ Because Angular CLI asks interactive questions and Java takes time to initialize
 
 This is the recommended, stable method for interview submissions.
 
-▶ 3. Start Backend (Spring Boot)
+✅ 3. Start Backend (Spring Boot)
 
 Inside DevContainer terminal:
 
@@ -57,7 +57,7 @@ Backend will start on:
 
 👉 http://localhost:8080
 
-▶ 4. Start Frontend (Angular)
+✅ 4. Start Frontend (Angular)
 
 Open a new terminal tab in DevContainer:
 
@@ -72,7 +72,7 @@ Frontend will start on:
 
 API calls (via proxy) will automatically communicate with the backend.
 
-🟢 5. Confirm Both Services Are Running
+✅ 5. Confirm Both Services Are Running
 
 Check:
 
@@ -97,3 +97,8 @@ Frontend
 cd scheduler-ui
 npm install
 npm run start:docker
+
+✅ 6. Refer TESTING DOCS folder
+
+It contains a screen-recording of the application
+Queries which you can execute and verify working of Challenge 1 & 2

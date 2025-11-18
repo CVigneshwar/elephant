@@ -5,8 +5,6 @@ import com.highschool.scheduler.model.Classroom;
 import com.highschool.scheduler.model.Course;
 import com.highschool.scheduler.model.CourseSection;
 import com.highschool.scheduler.model.Semester;
-import com.highschool.scheduler.model.Student;
-import com.highschool.scheduler.model.StudentCourseHistory;
 import com.highschool.scheduler.model.Teacher;
 import com.highschool.scheduler.repository.ClassroomRepository;
 import com.highschool.scheduler.repository.CourseRepository;
@@ -16,6 +14,9 @@ import com.highschool.scheduler.repository.StudentCourseHistoryRepository;
 import com.highschool.scheduler.repository.StudentRepository;
 import com.highschool.scheduler.repository.StudentSectionEnrollmentRepository;
 import com.highschool.scheduler.repository.TeacherRepository;
+import com.highschool.scheduler.service.util.CourseEligibilityCalculator;
+import com.highschool.scheduler.service.util.SchedulerUtils;
+import com.highschool.scheduler.service.util.TeacherLoadTracker;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,23 +24,17 @@ import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
 
 @Service
 public class ScheduleGeneratorService {
 
     private static final int ROOM_CAPACITY = 10;
     private static final int TEACHER_MAX_DAILY_HOURS = 4;
-    private static final int MAX_CONSECUTIVE_HOURS = 2;
 
     private static final DayOfWeek[] DAYS = {
             DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
@@ -56,15 +51,18 @@ public class ScheduleGeneratorService {
             LocalTime.of(16, 0)
     );
 
-    private final CourseRepository courseRepo;
-    private final TeacherRepository teacherRepo;
-    private final ClassroomRepository classroomRepo;
-    private final SemesterRepository semesterRepo;
-    private final CourseSectionRepository sectionRepo;
-    private final StudentRepository studentRepo;
-    private final StudentCourseHistoryRepository historyRepo;
-    private final StudentSectionEnrollmentRepository studentEnrollmentRepo;
+    private final CourseRepository courseRepository;
+    private final TeacherRepository teacherRepository;
+    private final ClassroomRepository classroomRepository;
+    private final SemesterRepository semesterRepository;
+    private final CourseSectionRepository courseSectionRepository;
+    private final StudentRepository studentRepository;
+    private final StudentCourseHistoryRepository studentCourseHistoryRepository;
+    private final StudentSectionEnrollmentRepository studentSectionEnrollmentRepository;
 
+    /**
+     * Constructs the ScheduleGeneratorService with required repositories.
+     */
     public ScheduleGeneratorService(CourseRepository courseRepo,
                                     TeacherRepository teacherRepo,
                                     ClassroomRepository classroomRepo,
@@ -73,34 +71,36 @@ public class ScheduleGeneratorService {
                                     StudentRepository studentRepo,
                                     StudentCourseHistoryRepository historyRepo,
                                     StudentSectionEnrollmentRepository studentEnrollmentRepo) {
-        this.courseRepo = courseRepo;
-        this.teacherRepo = teacherRepo;
-        this.classroomRepo = classroomRepo;
-        this.semesterRepo = semesterRepo;
-        this.sectionRepo = sectionRepo;
-        this.studentRepo = studentRepo;
-        this.historyRepo = historyRepo;
-        this.studentEnrollmentRepo = studentEnrollmentRepo;
+        this.courseRepository = courseRepo;
+        this.teacherRepository = teacherRepo;
+        this.classroomRepository = classroomRepo;
+        this.semesterRepository = semesterRepo;
+        this.courseSectionRepository = sectionRepo;
+        this.studentRepository = studentRepo;
+        this.studentCourseHistoryRepository = historyRepo;
+        this.studentSectionEnrollmentRepository = studentEnrollmentRepo;
     }
 
+    /**
+     * Generates a balanced schedule for the active semester.
+     * Deletes previous sections, creates new ones, and returns events for the UI.
+     * @return List of scheduled events (DTOs).
+     */
     @Transactional
     public List<ScheduleEventDTO> generateForActiveSemester() {
-        Semester semester = semesterRepo.findByIsActiveTrue()
+        Semester semester = semesterRepository.findByIsActiveTrue()
                 .orElseThrow(() -> new IllegalStateException("No active semester found"));
 
         // Remove existing course sections for active semester
-        List<CourseSection> existing = sectionRepo.findAll().stream()
-                .filter(s -> Objects.equals(s.getSemester().getId(), semester.getId()))
-                .toList();
-        if (!existing.isEmpty()) sectionRepo.deleteAllInBatch(existing);
+        courseSectionRepository.deleteAllByActiveSemester();
 
         // Fetch only courses belonging to active semester order
-        List<Course> courses = courseRepo.findBySemesterOrder(semester.getOrderInYear());
+        List<Course> courses = courseRepository.findBySemesterOrder(semester.getOrderInYear());
         if (courses.isEmpty()) return List.of();
 
-        List<Teacher> teachers = teacherRepo.findAll();
-        List<Classroom> rooms = classroomRepo.findAll();
-        DemandEstimator demand = new DemandEstimator(studentRepo.findAll(), historyRepo.findAll());
+        List<Teacher> teachers = teacherRepository.findAll();
+        List<Classroom> rooms = classroomRepository.findAll();
+        CourseEligibilityCalculator courseEligibilityCalculator = new CourseEligibilityCalculator(studentRepository.findAll(), studentCourseHistoryRepository.findAll());
         TeacherLoadTracker load = new TeacherLoadTracker();
 
         Map<Long, List<Teacher>> teachersBySpec = teachers.stream()
@@ -111,140 +111,183 @@ public class ScheduleGeneratorService {
                 .filter(r -> r.getRoomType() != null)
                 .collect(Collectors.groupingBy(r -> r.getRoomType().getId()));
 
-        // 🧠 New map for (day + time) level balancing
+
+        Map<String, Integer> globalSlotLoad = initializeGlobalSlotLoad();
+
+
+        List<CourseSection> courseSections = generateCourseSections(courses, courseEligibilityCalculator, teachersBySpec, roomsByType, load, semester, globalSlotLoad);
+        List<CourseSection> savedCourseSections = courseSectionRepository.saveAll(courseSections);
+        return savedCourseSections.stream().map(this::modelToDto).toList();
+    }
+
+    /**
+     * Clears all course sections and enrollments for the active semester.
+     */
+    @Transactional
+    public void resetSchedule() {
+        studentSectionEnrollmentRepository.deleteAllByActiveSemester();
+        courseSectionRepository.deleteAllByActiveSemester();
+        System.out.println(" Cleared course sections and enrollments for active semester only.");
+    }
+
+    /**
+     * Clears all course sections and enrollments for the active semester.
+     */
+    public List<ScheduleEventDTO> getSchedule() {
+        return courseSectionRepository.findAll().stream().map(this::modelToDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Generates course sections for the given courses and semester.
+     * @param courses List of courses to schedule.
+     * @param demand CourseEligibilityCalculator for demand estimation.
+     * @param teachersBySpec Map of specialization to available teachers.
+     * @param roomsByType Map of room type to available classrooms.
+     * @param load TeacherLoadTracker for load balancing.
+     * @param semester The semester entity.
+     * @param globalSlotLoad Map tracking slot usage for balancing.
+     * @return List of scheduled CourseSection entities (not saved yet).
+     */
+    private List<CourseSection> generateCourseSections(List<Course> courses, CourseEligibilityCalculator demand, Map<Long, List<Teacher>> teachersBySpec, Map<Long, List<Classroom>> roomsByType, TeacherLoadTracker load, Semester semester, Map<String, Integer> globalSlotLoad) {
+        int weeksInSemester = calculateWeeksInSemester(semester);
+        List<CourseSection> result = new ArrayList<>();
+        courses.forEach(course -> {
+            int eligibleStudentsCount = demand.eligibleStudentsCount(course);
+            int sectionsNeeded = Math.max(1,
+                    (int) Math.ceil((double) eligibleStudentsCount / (ROOM_CAPACITY * weeksInSemester)));
+
+            if (course.getHoursPerWeek() < sectionsNeeded) {
+                throw new IllegalStateException("hoursPerWeek needs to be increased for course - " + course.getName());
+            }
+
+            assignBalancedCourseSectionSchedule(course,   load, result,
+                    teachersBySpec, roomsByType, globalSlotLoad, semester);
+        });
+        return result;
+    }
+
+    /**
+     * Schedules course sections in a balanced way across timeslots, teachers, and rooms.
+     * @param course The course to schedule.
+     * @param load The teacher load tracker.
+     * @param result A list to collect created CourseSections.
+     * @param teachersBySpec Map of specialization to teachers.
+     * @param roomsByType Map of room type to classrooms.
+     * @param globalSlotLoad Map tracking slot usage.
+     * @param semester The semester entity.
+     */
+    private void assignBalancedCourseSectionSchedule(
+            Course course,
+            TeacherLoadTracker load,
+            List<CourseSection> result,
+            Map<Long, List<Teacher>> teachersBySpec,
+            Map<Long, List<Classroom>> roomsByType,
+            Map<String, Integer> globalSlotLoad,
+            Semester semester
+    ) {
+        int remainingHours = course.getHoursPerWeek();
+
+        while (remainingHours > 0) {
+            int minUsage = globalSlotLoad.values().stream().min(Integer::compareTo).orElse(0);
+
+            List<String> bestSlotKeys = globalSlotLoad.entrySet().stream()
+                    .filter(e -> e.getValue() == minUsage)
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+            Collections.shuffle(bestSlotKeys); // Randomize among equally-used slots, else if best teacher and room alloation gets occpuied, it might end in an endless loop
+
+            boolean placed = false;
+            for (String slotKey : bestSlotKeys) {
+                DayOfWeek day = DayOfWeek.valueOf(slotKey.split("\\|")[0]);
+                LocalTime slot = LocalTime.parse(slotKey.split("\\|")[1]);
+
+                //  Find least-loaded available teachers for this slot
+                List<Teacher> teacherPool = teachersBySpec.get(course.getSpecialization().getId());
+                if (teacherPool == null || teacherPool.isEmpty()) continue;
+                List<Teacher> availableTeachers = teacherPool.stream()
+                        .filter(t -> load.teacherDailyHours(t.getId(), day) < TEACHER_MAX_DAILY_HOURS
+                                && !load.isTeacherBusy(t.getId(), day, slot)
+                                && !load.wouldExceedConsecutiveHours(t.getId(), day, slot, 1))
+                        .toList();
+                if (availableTeachers.isEmpty()) continue;
+
+                Teacher altTeacher = SchedulerUtils.pickLeastLoadedTeacher(load, availableTeachers);
+
+                //  Find least-used available rooms for this slot
+                List<Classroom> roomPool = roomsByType.get(course.getSpecialization().getRoomType().getId());
+                if (roomPool == null || roomPool.isEmpty()) continue;
+                List<Classroom> availableRooms = roomPool.stream()
+                        .filter(r -> !load.isRoomBusy(r.getId(), day, slot))
+                        .toList();
+                if (availableRooms.isEmpty()) continue;
+
+                Classroom altRoom = SchedulerUtils.pickLeastUsedRoom(availableRooms, result);
+
+                // 4. Can we do a 2-hour block?
+                boolean canTryTwoHours =
+                        remainingHours >= 2
+                                && slot.getHour() != 11
+                                && slot.getHour() < 16
+                                && !load.isTeacherBusy(altTeacher.getId(), day, slot.plusHours(1))
+                                && !load.isRoomBusy(altRoom.getId(), day, slot.plusHours(1))
+                                && !load.wouldExceedConsecutiveHours(altTeacher.getId(), day, slot, 2);
+
+                int duration = canTryTwoHours ? 2 : 1;
+                if (!canTryTwoHours &&
+                        load.wouldExceedConsecutiveHours(altTeacher.getId(), day, slot, 1)) continue;
+
+                createCourseSection(course, result, semester, altTeacher, altRoom, day, slot, duration);
+
+                for (int h = 0; h < duration; h++) {
+                    load.markPlaced(altTeacher.getId(), altRoom.getId(), day, slot.plusHours(h));
+                }
+                globalSlotLoad.merge(slotKey, duration, Integer::sum);
+                remainingHours -= duration;
+                placed = true;
+                break;
+            }
+            if (!placed) {
+                System.err.println("Could not schedule all hours for course: " + course.getName());
+                break;
+            }
+        }
+    }
+
+    /**
+     * Creates and adds a CourseSection instance to the result list.
+     */
+    private static void createCourseSection(Course course, List<CourseSection> result, Semester semester, Teacher altTeacher, Classroom altRoom, DayOfWeek day, LocalTime slot, int duration) {
+        CourseSection sec = new CourseSection();
+        sec.setCourse(course);
+        sec.setTeacher(altTeacher);
+        sec.setClassroom(altRoom);
+        sec.setSemester(semester);
+        sec.setDayOfWeek(day);
+        sec.setStartTime(slot);
+        sec.setEndTime(slot.plusHours(duration));
+        result.add(sec);
+    }
+
+
+    /**
+     * Initializes the global slot load map (day, time -> usage count).
+     */
+    private static Map<String, Integer> initializeGlobalSlotLoad() {
         Map<String, Integer> globalSlotLoad = new HashMap<>();
         for (DayOfWeek d : DAYS) {
             for (LocalTime t : SLOTS) {
                 globalSlotLoad.put(d + "|" + t, 0);
             }
         }
-
-        List<CourseSection> result = new ArrayList<>();
-        AtomicInteger courseCounter = new AtomicInteger(0);
-        int weeksInSemester = calculateWeeksInSemester(semester);
-
-        courses.forEach(course -> {
-            int eligible = demand.eligibleCount(course);
-            int sectionsNeeded = Math.max(1,
-                    (int) Math.ceil((double) eligible / (ROOM_CAPACITY * weeksInSemester)));
-
-            if (course.getHoursPerWeek() < sectionsNeeded) {
-                throw new IllegalStateException("hoursPerWeek needs to be increased for course - " + course.getName());
-            }
-
-            Long specId = course.getSpecialization() != null ? course.getSpecialization().getId() : null;
-            if (specId == null) return;
-
-            List<Teacher> pool = teachersBySpec.getOrDefault(specId, List.of());
-            List<Classroom> roomPool = roomsByType.getOrDefault(
-                    course.getSpecialization().getRoomType() != null ?
-                            course.getSpecialization().getRoomType().getId() : -1L,
-                    List.of());
-            if (pool.isEmpty() || roomPool.isEmpty()) return;
-
-            pool.sort(Comparator.comparingInt(t -> load.weeklyHours(t.getId())));
-            Teacher teacher = pool.get(0);
-            Classroom room = roomPool.get(0);
-
-            scheduleWeeklyHoursBalanced(course, teacher, room, semester,
-                    course.getHoursPerWeek(), load, result,
-                    teachersBySpec, roomsByType, globalSlotLoad);
-        });
-
-        List<CourseSection> courseSections = sectionRepo.saveAll(result);
-        return courseSections.stream().map(this::modelToDto).toList();
+        return globalSlotLoad;
     }
 
-    private void scheduleWeeklyHoursBalanced(Course course,
-                                             Teacher teacher,
-                                             Classroom room,
-                                             Semester semester,
-                                             int weeklyHours,
-                                             TeacherLoadTracker load,
-                                             List<CourseSection> result,
-                                             Map<Long, List<Teacher>> teachersBySpec,
-                                             Map<Long, List<Classroom>> roomsByType,
-                                             Map<String, Integer> globalSlotLoad) {
-
-        int remainingHours = weeklyHours;
-
-        while (remainingHours > 0) {
-            // Pick least loaded (day, slot) combination globally
-            String bestSlotKey = globalSlotLoad.entrySet().stream()
-                    .min(Comparator.comparingInt(Map.Entry::getValue))
-                    .map(Map.Entry::getKey)
-                    .orElse(DayOfWeek.MONDAY + "|09:00");
-
-            DayOfWeek day = DayOfWeek.valueOf(bestSlotKey.split("\\|")[0]);
-            LocalTime slot = LocalTime.parse(bestSlotKey.split("\\|")[1]);
-
-            boolean placed = false;
-
-            for (Teacher altTeacher : teachersBySpec.get(course.getSpecialization().getId())) {
-                if (load.teacherDailyHours(altTeacher.getId(), day) >= TEACHER_MAX_DAILY_HOURS)
-                    continue;
-
-                for (Classroom altRoom : roomsByType.get(course.getSpecialization().getRoomType().getId())) {
-                    if (remainingHours <= 0) break;
-
-                    if (load.isTeacherBusy(altTeacher.getId(), day, slot)) continue;
-                    if (load.isRoomBusy(altRoom.getId(), day, slot)) continue;
-                    if (load.wouldExceedConsecutiveHours(altTeacher.getId(), day, slot, 1)) continue;
-
-                    boolean canTryTwoHours =
-                            remainingHours >= 2 &&
-                                    slot.getHour() != 11 && // not starting at 11 (would cross lunch)
-                                    slot.getHour() < 16 &&  // leaves room for +1 hour
-                                    !load.isTeacherBusy(altTeacher.getId(), day, slot.plusHours(1)) &&
-                                    !load.isRoomBusy(altRoom.getId(), day, slot.plusHours(1)) &&
-                                    !load.wouldExceedConsecutiveHours(altTeacher.getId(), day, slot, 2);
-
-                    int duration;
-                    if (canTryTwoHours) {
-                        duration = 2;
-                    } else {
-                        // If even a 1-hour block would exceed consecutive limit, skip this slot
-                        if (load.wouldExceedConsecutiveHours(altTeacher.getId(), day, slot, 1)) continue;
-                        duration = 1;
-                    }
-
-
-                    CourseSection sec = new CourseSection();
-                    sec.setCourse(course);
-                    sec.setTeacher(altTeacher);
-                    sec.setClassroom(altRoom);
-                    sec.setSemester(semester);
-                    sec.setDayOfWeek(day);
-                    sec.setStartTime(slot);
-                    sec.setEndTime(slot.plusHours(duration));
-                    result.add(sec);
-
-                    for (int h = 0; h < duration; h++) {
-                        load.markPlaced(altTeacher.getId(), altRoom.getId(), day, slot.plusHours(h));
-                    }
-
-                    globalSlotLoad.merge(day + "|" + slot, duration, Integer::sum);
-
-                    remainingHours -= duration;
-                    placed = true;
-                    break;
-                }
-                if (placed) break;
-            }
-
-            if (!placed) {
-                globalSlotLoad.merge(day + "|" + slot, 1, Integer::sum);
-                if (globalSlotLoad.values().stream().allMatch(v -> v > 0)) {
-                    System.err.println("⚠ Could not schedule all hours for course: " + course.getName());
-                    break;
-                }
-            }
-        }
-    }
-
-
-
-    private int calculateWeeksInSemester(Semester semester) {
+    /**
+     * Calculates the number of weeks in a semester.
+     * @param semester The semester entity.
+     * @return The number of weeks in the semester.
+     */
+    private static int calculateWeeksInSemester(Semester semester) {
         if (semester.getStartDate() == null || semester.getEndDate() == null)
             throw new IllegalArgumentException("Semester start and end dates must be set");
 
@@ -253,6 +296,11 @@ public class ScheduleGeneratorService {
         return (int) Math.ceil(daysBetween / 7.0);
     }
 
+    /**
+     * Converts a CourseSection entity to its DTO representation.
+     * @param section The CourseSection entity.
+     * @return The corresponding ScheduleEventDTO.
+     */
     private ScheduleEventDTO modelToDto(CourseSection section) {
         return new ScheduleEventDTO(
                 section.getId(),
@@ -267,121 +315,7 @@ public class ScheduleGeneratorService {
         );
     }
 
-    @Transactional
-    public void resetSchedule() {
-        studentEnrollmentRepo.deleteAllByActiveSemester();
-        sectionRepo.deleteAllByActiveSemester();
-        System.out.println("🧹 Cleared course sections and enrollments for active semester only.");
-    }
 
-    public List<ScheduleEventDTO> getSchedule() {
-        return sectionRepo.findAll().stream().map(this::modelToDto).collect(Collectors.toList());
-    }
-    // ---- Helper Classes ----
 
-    private static class TeacherLoadTracker {
-        private final Map<Long, Map<DayOfWeek, Set<LocalTime>>> teacherSlots = new HashMap<>();
-        private final Map<Long, Map<DayOfWeek, Integer>> teacherDaily = new HashMap<>();
-        private final Map<Long, Integer> teacherWeekly = new HashMap<>();
-        private final Set<String> roomBusy = new HashSet<>();
 
-        boolean isTeacherBusy(Long teacherId, DayOfWeek day, LocalTime slot) {
-            return teacherSlots.getOrDefault(teacherId, Map.of())
-                    .getOrDefault(day, Set.of()).contains(slot);
-        }
-
-        boolean isRoomBusy(Long roomId, DayOfWeek day, LocalTime slot) {
-            return roomBusy.contains(key(roomId, day, slot));
-        }
-
-        int weeklyHours(Long teacherId) {
-            return teacherWeekly.getOrDefault(teacherId, 0);
-        }
-
-        int teacherDailyHours(Long teacherId, DayOfWeek day) {
-            return teacherDaily.getOrDefault(teacherId, Map.of())
-                    .getOrDefault(day, 0);
-        }
-
-        void markPlaced(Long teacherId, Long roomId, DayOfWeek day, LocalTime slot) {
-            teacherSlots.computeIfAbsent(teacherId, k -> new EnumMap<>(DayOfWeek.class))
-                    .computeIfAbsent(day, k -> new HashSet<>()).add(slot);
-
-            teacherDaily.computeIfAbsent(teacherId, k -> new EnumMap<>(DayOfWeek.class))
-                    .merge(day, 1, Integer::sum);
-
-            teacherWeekly.merge(teacherId, 1, Integer::sum);
-            roomBusy.add(key(roomId, day, slot));
-        }
-
-        boolean wouldExceedConsecutiveHours(Long teacherId, DayOfWeek day, LocalTime proposedStart, int duration) {
-            Set<LocalTime> occupied = teacherSlots
-                    .getOrDefault(teacherId, Map.of())
-                    .getOrDefault(day, Set.of());
-
-            // Build list of hours this session would occupy
-            List<LocalTime> newSlots = new ArrayList<>();
-            for (int i = 0; i < duration; i++) newSlots.add(proposedStart.plusHours(i));
-
-            // Combine occupied + new slots
-            List<Integer> hours = occupied.stream()
-                    .map(LocalTime::getHour)
-                    .collect(Collectors.toCollection(ArrayList::new));
-            newSlots.forEach(s -> hours.add(s.getHour()));
-
-            Collections.sort(hours);
-
-            // Count consecutive hours
-            int maxConsecutive = 1, current = 1;
-            for (int i = 1; i < hours.size(); i++) {
-                if (hours.get(i) == hours.get(i - 1) + 1) {
-                    current++;
-                    maxConsecutive = Math.max(maxConsecutive, current);
-                } else {
-                    current = 1;
-                }
-            }
-            return maxConsecutive > MAX_CONSECUTIVE_HOURS;
-        }
-        private static String key(Long id, DayOfWeek d, LocalTime t) {
-            return id + "|" + d + "|" + t;
-        }
-    }
-
-    private static class DemandEstimator {
-        private final List<Student> students;
-        private final Map<Long, List<StudentCourseHistory>> historyByStudent;
-
-        DemandEstimator(List<Student> students, List<StudentCourseHistory> histories) {
-            this.students = students;
-            this.historyByStudent = histories.stream()
-                    .collect(Collectors.groupingBy(h -> h.getStudent().getId()));
-        }
-
-        int eligibleCount(Course course) {
-            return (int) students.stream()
-                    .filter(s -> withinGradeRange(s, course))
-                    .filter(s -> hasPrerequisitePassed(s, course))
-                    .filter(s -> notAlreadyPassed(s, course))
-                    .count();
-        }
-
-        private boolean withinGradeRange(Student s, Course c) {
-            return s.getGradeLevel() >= c.getGradeLevelMin()
-                    && s.getGradeLevel() <= c.getGradeLevelMax();
-        }
-
-        private boolean hasPrerequisitePassed(Student s, Course c) {
-            if (c.getPrerequisite() == null) return true;
-            return historyByStudent.getOrDefault(s.getId(), List.of()).stream()
-                    .anyMatch(h -> Objects.equals(h.getCourse().getId(), c.getPrerequisite().getId())
-                            && "passed".equalsIgnoreCase(h.getStatus()));
-        }
-
-        private boolean notAlreadyPassed(Student s, Course c) {
-            return historyByStudent.getOrDefault(s.getId(), List.of()).stream()
-                    .noneMatch(h -> Objects.equals(h.getCourse().getId(), c.getId())
-                            && "passed".equalsIgnoreCase(h.getStatus()));
-        }
-    }
 }

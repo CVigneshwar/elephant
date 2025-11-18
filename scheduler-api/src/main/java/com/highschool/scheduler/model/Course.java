@@ -26,7 +26,7 @@ public class Course {
     private String name;
 
     @Column(name = "credits")
-    private int credits;
+    private double credits;
 
     @Column(name = "hours_per_week")
     private int hoursPerWeek;

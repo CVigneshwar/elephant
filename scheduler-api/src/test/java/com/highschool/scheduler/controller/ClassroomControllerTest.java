@@ -1,7 +1,6 @@
 package com.highschool.scheduler.controller;
 
 import com.highschool.scheduler.service.ClassroomService;
-import com.highschool.scheduler.model.Classroom;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
