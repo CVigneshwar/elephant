@@ -1,4 +1,3 @@
-// com.highschool.scheduler.service.EnrollmentService
 package com.highschool.scheduler.service;
 
 import com.highschool.scheduler.dto.AcademicHistoryDTO;
@@ -8,7 +7,6 @@ import com.highschool.scheduler.dto.ScheduleEventDTO;
 import com.highschool.scheduler.dto.ValidationResponse;
 import com.highschool.scheduler.model.CourseSection;
 import com.highschool.scheduler.model.Semester;
-import com.highschool.scheduler.model.StudentCourseHistory;
 import com.highschool.scheduler.model.StudentSectionEnrollment;
 import com.highschool.scheduler.repository.CourseRepository;
 import com.highschool.scheduler.repository.CourseSectionRepository;
@@ -371,7 +369,7 @@ public class EnrollmentService {
 
         int creditsRequired = 30;
         double creditsRemaining = Math.max(0, creditsRequired - totalCredits);
-        double completion = ((double) totalCredits / creditsRequired) * 100;
+        double completion = (totalCredits / creditsRequired) * 100;
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("studentId", student.getId());
@@ -389,46 +387,7 @@ public class EnrollmentService {
         return result;
     }
 
-    /**
-     * Calculates GPA from a list of pass/fail course histories.
-     *
-     * @param histories the list of {@link StudentCourseHistory}
-     * @return the calculated GPA as a double
-     */
-    public double calculateGpaFromPassFail(List<StudentCourseHistory> histories) {
-        double totalPoints = 0.0;
-        double totalCredits = 0;
 
-        for (var h : histories) {
-            double credits = h.getCourse().getCredits();
-            totalCredits += credits;
-
-            if ("passed".equalsIgnoreCase(h.getStatus())) {
-                totalPoints += 4.0 * credits; // treat pass as full grade
-            } else if ("failed".equalsIgnoreCase(h.getStatus())) {
-                totalPoints += 0.0;
-            }
-        }
-
-        return totalCredits > 0 ? totalPoints / totalCredits : 0.0;
-    }
-
-
-    private double mapGradeToPoints(String grade) {
-        return switch (grade.toUpperCase()) {
-            case "A" -> 4.0;
-            case "A-" -> 3.7;
-            case "B+" -> 3.3;
-            case "B" -> 3.0;
-            case "B-" -> 2.7;
-            case "C+" -> 2.3;
-            case "C" -> 2.0;
-            case "C-" -> 1.7;
-            case "D" -> 1.0;
-            case "F" -> 0.0;
-            default -> 0.0;
-        };
-    }
 
 
     // ----- helpers -----
